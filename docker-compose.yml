@@ -1,0 +1,16 @@
+# Only for development purposes
+
+version: "3"
+
+services:
+  rsc:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      RSC_USERNAME: ${RSC_USERNAME:?error}
+      RSC_PASSWORD: ${RSC_PASSWORD:?error}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:?error}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:?error}
+    ports:
+      - "80:80"
