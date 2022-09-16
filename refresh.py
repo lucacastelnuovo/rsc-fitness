@@ -2,18 +2,10 @@ import os
 import json
 import locale
 import datetime
+import requests
 import scrapy
 from scrapyscript import Job, Processor
 from minio import Minio
-
-# TODO: get credentials from ENV
-# https -q --session=./rsc.json --form POST publiek.usc.ru.nl/publiek/login.php \
-#  username=$USERNAME \
-#  password=$PASSWORD
-USER = os.getenv("RSC_USERNAME")
-PASS = os.getenv("RSC_PASSWORD")
-
-cookie = "REDACTED"
 
 
 class RscSpider(scrapy.spiders.Spider):
@@ -57,36 +49,70 @@ class RscSpider(scrapy.spiders.Spider):
             yield {"date": date, "time": time, "reservations": reservations}
 
 
-settings = scrapy.settings.Settings(values={"LOG_LEVEL": "WARNING"})
-processor = Processor(settings=settings)
+def getAuthCookie():
+    response = requests.get("https://publiek.usc.ru.nl/publiek/login.php")
 
-job = Job(RscSpider, cookie=cookie)
-results = processor.run(job)
-
-slots = {}
-locale.setlocale(locale.LC_ALL, "nl_NL.UTF-8")
-
-for result in results:
-    date = datetime.datetime.strptime(result["date"], "%a %d %b %Y").strftime(
-        "%Y-%m-%d"
+    requests.post(
+        "https://publiek.usc.ru.nl/publiek/login.php",
+        cookies=response.cookies,
+        data={
+            "username": os.environ.get("RSC_USERNAME"),
+            "password": os.environ.get("RSC_PASSWORD"),
+        },
     )
 
-    if date in slots:
-        slots[date].append([result["time"], result["reservations"]])
-    else:
-        slots[date] = [[result["time"], result["reservations"]]]
+    return response.cookies["publiek"]
 
-with open("/app/data.json", "w", encoding="utf-8") as f:
-    json.dump(slots, f, separators=(",", ":"))
 
-MINIO_CLIENT = Minio(
-    "s3.castelnuovo.dev",
-    os.environ.get("S3_ACCESS_KEY"),
-    os.environ.get("S3_SECRET_KEY"),
-)
+def runScraper(authCookie):
+    settings = scrapy.settings.Settings(values={"LOG_LEVEL": "WARNING"})
 
-MINIO_CLIENT.fput_object(
-    "rsc.castelnuovo.dev",
-    "data.json",
-    "/app/data.json",
-)
+    processor = Processor(settings=settings)
+    job = Job(RscSpider, cookie=authCookie)
+
+    return processor.run(job)
+
+
+def sortResults(results):
+    slots = {}
+    locale.setlocale(locale.LC_ALL, "nl_NL.UTF-8")
+
+    for result in results:
+        date = datetime.datetime.strptime(result["date"], "%a %d %b %Y").strftime(
+            "%Y-%m-%d"
+        )
+
+        if date in slots:
+            slots[date].append([result["time"], result["reservations"]])
+        else:
+            slots[date] = [[result["time"], result["reservations"]]]
+
+    return slots
+
+
+def storeSlots(slots):
+    with open("/app/data.json", "w", encoding="utf-8") as f:
+        json.dump(slots, f, separators=(",", ":"))
+
+    MINIO_CLIENT = Minio(
+        "s3.castelnuovo.dev",
+        os.environ.get("S3_ACCESS_KEY"),
+        os.environ.get("S3_SECRET_KEY"),
+    )
+
+    MINIO_CLIENT.fput_object(
+        "rsc.castelnuovo.dev",
+        "data.json",
+        "/app/data.json",
+    )
+
+
+def main():
+    cookie = getAuthCookie()
+    results = runScraper(cookie)
+    slots = sortResults(results)
+
+    storeSlots(slots)
+
+
+main()
