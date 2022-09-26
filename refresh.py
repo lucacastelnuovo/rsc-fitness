@@ -50,18 +50,18 @@ class RscSpider(scrapy.spiders.Spider):
 
 
 def getAuthCookie():
-    response = requests.get("https://publiek.usc.ru.nl/publiek/login.php")
+    session = requests.Session()
 
-    requests.post(
+    session.get("https://publiek.usc.ru.nl/publiek/login.php")
+    session.post(
         "https://publiek.usc.ru.nl/publiek/login.php",
-        cookies=response.cookies,
         data={
             "username": os.environ.get("RSC_USERNAME"),
             "password": os.environ.get("RSC_PASSWORD"),
         },
     )
 
-    return response.cookies["publiek"]
+    return session.cookies["publiek"]
 
 
 def runScraper(authCookie):
@@ -109,10 +109,11 @@ def storeSlots(slots):
 
 def main():
     cookie = getAuthCookie()
-    results = runScraper(cookie)
-    slots = sortResults(results)
+    print(cookie)
+    # results = runScraper(cookie)
+    # slots = sortResults(results)
 
-    storeSlots(slots)
+    # storeSlots(slots)
 
 
 main()
