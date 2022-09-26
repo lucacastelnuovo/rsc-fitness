@@ -109,11 +109,10 @@ def storeSlots(slots):
 
 def main():
     cookie = getAuthCookie()
-    print(cookie)
-    # results = runScraper(cookie)
-    # slots = sortResults(results)
+    results = runScraper(cookie)
+    slots = sortResults(results)
 
-    # storeSlots(slots)
+    storeSlots(slots)
 
 
 main()

@@ -27,7 +27,7 @@ RUN pip3 install --no-cache --upgrade scrapy scrapyscript
 COPY . /app
 
 RUN touch crontab.tmp \
-    && echo '* * * * * python /app/refresh.py >> /dev/null 2>&1' > crontab.tmp \
+    && echo '*/5 * * * * python /app/refresh.py >> /dev/null 2>&1' > crontab.tmp \
     && crontab crontab.tmp \
     && rm -rf crontab.tmp
 
