@@ -3,7 +3,7 @@ const currentDay = new Date().toISOString().slice(0, 10);
 const getSlots = async () => {
   const url = "https://s3.castelnuovo.dev/rsc.castelnuovo.dev/data.json";
 
-  const slots = await fetch(url)
+  const slots = await fetch(url, { cache: "no-store" })
     .then((response) => response.json())
     .then((data) => {
       return data;
